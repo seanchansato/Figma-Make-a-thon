@@ -9,7 +9,6 @@ export default function BeanModel() {
   const sceneRef = useRef<THREE.Scene | null>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
-  const modelRef = useRef<THREE.Group | null>(null)
   const model2Ref = useRef<THREE.Group | null>(null)
   const animationFrameRef = useRef<number | null>(null)
 
@@ -47,37 +46,14 @@ export default function BeanModel() {
     directionalLight.castShadow = true
     scene.add(directionalLight)
 
-    // Load GLB model
     const loader = new GLTFLoader()
-    loader.load(
-      '/bean.glb',
-      (gltf) => {
-        const model = gltf.scene
-        model.scale.set(1, 1, 1)
-        model.position.set(-2, -1, 0)
-        scene.add(model)
-        modelRef.current = model
-
-        // Center the model
-        const box = new THREE.Box3().setFromObject(model)
-        const center = box.getCenter(new THREE.Vector3())
-        model.position.sub(center)
-      },
-      (progress) => {
-        console.log('Loading progress:', (progress.loaded / progress.total) * 100 + '%')
-      },
-      (error) => {
-        console.error('Error loading model:', error)
-      }
-    )
-
     // Load second GLB model
     loader.load(
-      '/bean2.glb',
+      '/bean3.glb',
       (gltf) => {
         const model2 = gltf.scene
         model2.scale.set(1, 1, 1)
-        model2.position.set(2, 1, 0)
+        model2.position.set(0, 0, 0)
         scene.add(model2)
         model2Ref.current = model2
 
@@ -87,10 +63,10 @@ export default function BeanModel() {
         model2.position.sub(center2)
       },
       (progress) => {
-        console.log('Loading progress (bean2):', (progress.loaded / progress.total) * 100 + '%')
+        console.log('Loading progress (bean3):', (progress.loaded / progress.total) * 100 + '%')
       },
       (error) => {
-        console.error('Error loading model (bean2):', error)
+        console.error('Error loading model (bean3):', error)
       }
     )
 
@@ -102,18 +78,11 @@ export default function BeanModel() {
       const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
       const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
     
-      // Smoothly move the first model towards cursor position
-      if (modelRef.current) {
-    
-        // Add rotation based on cursor position for more dynamic effect
-        modelRef.current.rotation.y = mouseX * 0.5;
-        modelRef.current.rotation.x = mouseY * -0.3;
-      }
-    
       // Tilt the second model towards the cursor
       if (model2Ref.current) {
-        // Tilt based on cursor position
+        // Side-to-side tilt
         model2Ref.current.rotation.y = mouseX * 0.5;
+        // Up-and-down tilt (inverted)
         model2Ref.current.rotation.x = mouseY * -0.3;
       }
     };
@@ -121,12 +90,18 @@ export default function BeanModel() {
     window.addEventListener('mousemove', handleMouseMove)
 
     // Animation loop
+    let time = 0;
     const animate = () => {
-      animationFrameRef.current = requestAnimationFrame(animate)
-      
+      animationFrameRef.current = requestAnimationFrame(animate);
 
-      renderer.render(scene, camera)
-    }
+      time += 0.01;
+      if (model2Ref.current) {
+        // Add a slight bobbing animation
+        model2Ref.current.position.y = Math.sin(time) * 0.05;
+      }
+
+      renderer.render(scene, camera);
+    };
     animate()
 
     // Handle window resize
