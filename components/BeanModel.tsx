@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
@@ -11,6 +11,43 @@ export default function BeanModel() {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const model2Ref = useRef<THREE.Group | null>(null)
   const animationFrameRef = useRef<number | null>(null)
+  const [evolutionState, setEvolutionState] = useState<'idle' | 'evolving' | 'evolved'>('idle')
+
+  useEffect(() => {
+    if (evolutionState === 'evolving') {
+      setTimeout(() => {
+        let oldRotation = 0;
+        if (sceneRef.current && model2Ref.current) {
+          oldRotation = model2Ref.current.rotation.z;
+          sceneRef.current.remove(model2Ref.current);
+        }
+
+        const loader = new GLTFLoader()
+        loader.load(
+          '/bean3.glb',
+          (gltf) => {
+            const model2 = gltf.scene
+            model2.scale.set(1, 1, 1)
+            model2.position.set(0, 0, 0)
+            model2.rotation.z = oldRotation; // Apply old rotation
+            sceneRef.current?.add(model2)
+            model2Ref.current = model2
+
+            // Center the second model
+            const box2 = new THREE.Box3().setFromObject(model2)
+            const center2 = box2.getCenter(new THREE.Vector3())
+            model2.position.sub(center2)
+
+            setEvolutionState('evolved');
+          },
+          undefined,
+          (error) => {
+            console.error('Error loading model (bean3.glb):', error)
+          }
+        )
+      }, 3000);
+    }
+  }, [evolutionState]);
 
   useEffect(() => {
     if (!mountRef.current) return
@@ -49,7 +86,7 @@ export default function BeanModel() {
     const loader = new GLTFLoader()
     // Load second GLB model
     loader.load(
-      '/bean3.glb',
+      '/bean2sad.glb',
       (gltf) => {
         const model2 = gltf.scene
         model2.scale.set(1, 1, 1)
@@ -63,10 +100,10 @@ export default function BeanModel() {
         model2.position.sub(center2)
       },
       (progress) => {
-        console.log('Loading progress (bean3):', (progress.loaded / progress.total) * 100 + '%')
+        console.log('Loading progress (bean2sad.glb):', (progress.loaded / progress.total) * 100 + '%')
       },
       (error) => {
-        console.error('Error loading model (bean3):', error)
+        console.error('Error loading model (bean2sad.glb):', error)
       }
     )
 
@@ -91,13 +128,21 @@ export default function BeanModel() {
 
     // Animation loop
     let time = 0;
+    let rotationSpeed = 0;
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
 
       time += 0.01;
       if (model2Ref.current) {
-        // Add a slight bobbing animation
-        model2Ref.current.position.y = Math.sin(time) * 0.05;
+        if (evolutionState === 'evolving') {
+          rotationSpeed = 0.5;
+        } else if (evolutionState === 'evolved') {
+          rotationSpeed *= 0.95; // Gradually slow down
+        } else {
+          // Add a slight bobbing animation when idle
+          model2Ref.current.position.y = Math.sin(time) * 0.05;
+        }
+        model2Ref.current.rotation.z += rotationSpeed;
       }
 
       renderer.render(scene, camera);
@@ -133,6 +178,28 @@ export default function BeanModel() {
     }
   }, [])
 
-  return <div ref={mountRef} style={{ width: '100%', height: '100vh', margin: 0, padding: 0 }} />
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100vh', margin: 0, padding: 0 }}>
+      <div ref={mountRef} style={{ width: '100%', height: '100%', margin: 0, padding: 0 }} />
+      <div style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)' }}>
+        <button
+          onClick={() => setEvolutionState('evolving')}
+          disabled={evolutionState !== 'idle'}
+          style={{
+            padding: '10px 20px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            borderRadius: '5px',
+            border: 'none',
+            background: '#444',
+            color: 'white',
+            opacity: evolutionState !== 'idle' ? 0.5 : 1
+          }}
+        >
+          Evolve
+        </button>
+      </div>
+    </div>
+  )
 }
 
