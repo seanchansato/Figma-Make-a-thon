@@ -10,6 +10,7 @@ export default function BeanModel() {
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const modelRef = useRef<THREE.Group | null>(null)
+  const model2Ref = useRef<THREE.Group | null>(null)
   const animationFrameRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export default function BeanModel() {
       (gltf) => {
         const model = gltf.scene
         model.scale.set(1, 1, 1)
-        model.position.set(0, 0, 0)
+        model.position.set(-2, -1, 0)
         scene.add(model)
         modelRef.current = model
 
@@ -70,26 +71,52 @@ export default function BeanModel() {
       }
     )
 
+    // Load second GLB model
+    loader.load(
+      '/bean2.glb',
+      (gltf) => {
+        const model2 = gltf.scene
+        model2.scale.set(1, 1, 1)
+        model2.position.set(2, 1, 0)
+        scene.add(model2)
+        model2Ref.current = model2
+
+        // Center the second model
+        const box2 = new THREE.Box3().setFromObject(model2)
+        const center2 = box2.getCenter(new THREE.Vector3())
+        model2.position.sub(center2)
+      },
+      (progress) => {
+        console.log('Loading progress (bean2):', (progress.loaded / progress.total) * 100 + '%')
+      },
+      (error) => {
+        console.error('Error loading model (bean2):', error)
+      }
+    )
+
     // Mouse movement handler
     const handleMouseMove = (event: MouseEvent) => {
-      if (!modelRef.current || !cameraRef.current) return
-
+      if (!cameraRef.current) return;
+    
       // Normalize mouse coordinates to -1 to 1 range
-      const mouseX = (event.clientX / window.innerWidth) * 2 - 1
-      const mouseY = -(event.clientY / window.innerHeight) * 2 + 1
-
-      // Smoothly move the model towards cursor position
-      const targetX = mouseX * 2
-      const targetY = mouseY * 2
-
-      // Use lerp for smooth movement
-      modelRef.current.position.x += (targetX - modelRef.current.position.x) * 0.05
-      modelRef.current.position.y += (targetY - modelRef.current.position.y) * 0.05
-
-      // Add rotation based on cursor position for more dynamic effect
-      modelRef.current.rotation.y = mouseX * 0.5
-      modelRef.current.rotation.x = mouseY * 0.3
-    }
+      const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+      const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+    
+      // Smoothly move the first model towards cursor position
+      if (modelRef.current) {
+    
+        // Add rotation based on cursor position for more dynamic effect
+        modelRef.current.rotation.y = mouseX * 0.5;
+        modelRef.current.rotation.x = mouseY * -0.3;
+      }
+    
+      // Tilt the second model towards the cursor
+      if (model2Ref.current) {
+        // Tilt based on cursor position
+        model2Ref.current.rotation.y = mouseX * 0.5;
+        model2Ref.current.rotation.x = mouseY * -0.3;
+      }
+    };
 
     window.addEventListener('mousemove', handleMouseMove)
 
@@ -97,10 +124,6 @@ export default function BeanModel() {
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate)
       
-      if (modelRef.current) {
-        // Subtle idle rotation
-        modelRef.current.rotation.z += 0.005
-      }
 
       renderer.render(scene, camera)
     }
